@@ -95,7 +95,10 @@ export default function StudyCenter() {
 
   const availableSeats = useMemo<Seat[]>(() => {
     if (!selectedRoom || !selectedRoom.seats) return [];
-    return selectedRoom.seats.flat().filter((s) => s.status === "available");
+    return selectedRoom.seats.flat().filter((s) =>
+      s.status === "available" ||
+      (s.status === "reserved" && s.reservedBy === "user_self")
+    );
   }, [selectedRoom]);
 
   const currentRoom = useMemo(
@@ -252,15 +255,24 @@ export default function StudyCenter() {
                   disabled={!!currentSession || !selectedRoom}
                   className="w-full input-field flex items-center justify-between pr-10 disabled:opacity-60"
                 >
-                  <span className={!selectedSeatId ? "text-cream-400" : ""}>
+                  <span className={!selectedSeatId ? "text-cream-400" : "flex items-center gap-2"}>
                     {selectedSeatId
                       ? (() => {
                           const seat = selectedRoom?.seats
                             ?.flat()
                             .find((s) => s.id === selectedSeatId);
-                          return seat
-                            ? `第 ${seat.row + 1}排 第 ${seat.col + 1}座`
-                            : "加载中...";
+                          return seat ? (
+                            <>
+                              <span>第 {seat.row + 1}排 第 {seat.col + 1}座</span>
+                              {seat.status === "reserved" && (
+                                <span className="chip bg-amberGold-100 text-amberGold-500 text-xs">
+                                  已预约
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            "加载中..."
+                          );
                         })()
                       : selectedRoom
                       ? availableSeats.length > 0
@@ -295,7 +307,14 @@ export default function StudyCenter() {
                             selectedSeatId === s.id && "bg-forest-50 text-forest-700 font-medium"
                           )}
                         >
-                          第 {s.row + 1}排 第 {s.col + 1}座
+                          <div className="flex items-center justify-between">
+                            <span>第 {s.row + 1}排 第 {s.col + 1}座</span>
+                            {s.status === "reserved" && (
+                              <span className="chip bg-amberGold-100 text-amberGold-500 text-xs">
+                                已预约
+                              </span>
+                            )}
+                          </div>
                         </button>
                       ))
                     )}
