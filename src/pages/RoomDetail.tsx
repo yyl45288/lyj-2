@@ -167,7 +167,7 @@ export default function RoomDetail() {
       await loadRoom(id);
       await loadMyReservations();
     } catch (err) {
-      console.error("预约失败", err);
+      alert(err instanceof Error ? err.message : "预约失败，请稍后重试");
     } finally {
       setIsReserving(false);
     }

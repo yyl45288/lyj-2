@@ -54,7 +54,7 @@ router.get('/reservations', (req: Request, res: Response): void => {
     const targetUserId = (userId as string) || 'user_self'
 
     const userReservations = reservations
-      .filter(r => r.userId === targetUserId)
+      .filter(r => r.userId === targetUserId && r.status === 'pending')
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
 
     res.status(200).json({

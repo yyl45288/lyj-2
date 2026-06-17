@@ -6,6 +6,7 @@ import {
   studyRecords,
   pointLogs,
   activeSessions,
+  reservations,
   updateRoomOccupied,
 } from '../data.js'
 import type { StudyRecord, StudySession } from '../../shared/types.js'
@@ -66,6 +67,13 @@ router.post('/checkin', (req: Request, res: Response): void => {
     seat.occupiedBy = userId
     seat.reservedBy = undefined
     updateRoomOccupied(roomId)
+
+    const matchingReservation = reservations.find(
+      r => r.userId === userId && r.roomId === roomId && r.seatId === seatId && r.status === 'pending'
+    )
+    if (matchingReservation) {
+      matchingReservation.status = 'active'
+    }
 
     const now = new Date()
     const recordId = `record_live_${Date.now()}_${recordCounter++}`
@@ -173,6 +181,13 @@ router.post('/checkout', (req: Request, res: Response): void => {
       seat.status = 'available'
       seat.occupiedBy = undefined
       updateRoomOccupied(record.roomId)
+    }
+
+    const completedReservation = reservations.find(
+      r => r.userId === userId && r.roomId === record.roomId && r.seatId === record.seatId && r.status === 'active'
+    )
+    if (completedReservation) {
+      completedReservation.status = 'completed'
     }
 
     activeSessions.delete(userId)

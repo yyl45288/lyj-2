@@ -46,6 +46,22 @@ router.post('/reserve', (req: Request, res: Response): void => {
 
     const userId = 'user_self'
 
+    const newStart = new Date(startTime).getTime()
+    const newEnd = new Date(endTime).getTime()
+    const hasOverlap = reservations.some(r =>
+      r.userId === userId
+      && r.status === 'pending'
+      && newStart < new Date(r.endTime).getTime()
+      && newEnd > new Date(r.startTime).getTime()
+    )
+    if (hasOverlap) {
+      res.status(400).json({
+        error: 'TimeConflict',
+        message: '该时间段与已有预约冲突，同一时段只能预约一个座位',
+      })
+      return
+    }
+
     seat.status = 'reserved'
     seat.reservedBy = userId
 
