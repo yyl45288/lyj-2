@@ -10,7 +10,7 @@ import type {
 import { ApiError } from "./error";
 import type { ErrorCode } from "../types/error";
 
-const baseURL = `${window.location.origin}/api`;
+const baseURL = (import.meta.env.VITE_API_BASE_URL || `${window.location.origin}/api`).replace(/\/$/, "");
 const TOKEN_KEY = "auth_token";
 
 type ApiResponse<T> = { data: T; message?: string };

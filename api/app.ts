@@ -7,7 +7,6 @@ import express, {
   type Response,
 } from 'express'
 import cors from 'cors'
-import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import roomsRoutes from './routes/rooms.js'
@@ -17,12 +16,10 @@ import userRoutes from './routes/user.js'
 import leaderboardRoutes from './routes/leaderboard.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { ErrorCode } from './errors.js'
+import config from '../shared/config.js'
 
 // for esm mode
 void fileURLToPath(import.meta.url)
-
-// load env
-dotenv.config()
 
 const app: express.Application = express()
 
@@ -49,6 +46,7 @@ app.use(
     res.status(200).json({
       success: true,
       message: 'ok',
+      env: config.nodeEnv,
     })
   },
 )
