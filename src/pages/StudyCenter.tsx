@@ -94,7 +94,7 @@ export default function StudyCenter() {
   );
 
   const availableSeats = useMemo<Seat[]>(() => {
-    if (!selectedRoom) return [];
+    if (!selectedRoom || !selectedRoom.seats) return [];
     return selectedRoom.seats.flat().filter((s) => s.status === "available");
   }, [selectedRoom]);
 
@@ -104,7 +104,7 @@ export default function StudyCenter() {
   );
 
   const currentSeat = useMemo(() => {
-    if (!currentRoom || !currentSession) return null;
+    if (!currentRoom || !currentRoom.seats || !currentSession) return null;
     return currentRoom.seats.flat().find((s) => s.id === currentSession.seatId);
   }, [currentRoom, currentSession]);
 
@@ -254,15 +254,14 @@ export default function StudyCenter() {
                 >
                   <span className={!selectedSeatId ? "text-cream-400" : ""}>
                     {selectedSeatId
-                      ? `第 ${
-                          selectedRoom?.seats
-                            .flat()
-                            .find((s) => s.id === selectedSeatId)?.row ?? 1
-                        }排 第 ${
-                          selectedRoom?.seats
-                            .flat()
-                            .find((s) => s.id === selectedSeatId)?.col ?? 1
-                        }座`
+                      ? (() => {
+                          const seat = selectedRoom?.seats
+                            ?.flat()
+                            .find((s) => s.id === selectedSeatId);
+                          return seat
+                            ? `第 ${seat.row + 1}排 第 ${seat.col + 1}座`
+                            : "加载中...";
+                        })()
                       : selectedRoom
                       ? availableSeats.length > 0
                         ? "请选择座位"
@@ -296,7 +295,7 @@ export default function StudyCenter() {
                             selectedSeatId === s.id && "bg-forest-50 text-forest-700 font-medium"
                           )}
                         >
-                          第 {s.row}排 第 {s.col}座
+                          第 {s.row + 1}排 第 {s.col + 1}座
                         </button>
                       ))
                     )}
@@ -411,7 +410,7 @@ export default function StudyCenter() {
                       {currentRoom?.name ?? "-"}
                     </p>
                     <p className="text-cream-500">
-                      {currentSeat ? `第${currentSeat.row}排 第${currentSeat.col}座` : "-"}
+                      {currentSeat ? `第${currentSeat.row + 1}排 第${currentSeat.col + 1}座` : "-"}
                     </p>
                   </div>
                 </div>
