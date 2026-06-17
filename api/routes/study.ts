@@ -42,16 +42,24 @@ router.post('/checkin', authMiddleware, asyncHandler((req: Request, res: Respons
   }
 
   if (seat.status === 'occupied') {
-    throwError(ErrorCode.SeatOccupied)
+    throwError(ErrorCode.SeatOccupied, '该座位正在使用中')
   }
 
-  if (seat.status === 'reserved' && seat.reservedBy !== userId) {
-    throwError(ErrorCode.SeatReserved)
+  const nowMs = Date.now()
+  const currentReservation = reservations.find(r =>
+    r.roomId === roomId
+    && r.seatId === seatId
+    && (r.status === 'pending' || r.status === 'active')
+    && nowMs >= new Date(r.startTime).getTime()
+    && nowMs < new Date(r.endTime).getTime()
+  )
+
+  if (currentReservation && currentReservation.userId !== userId) {
+    throwError(ErrorCode.SeatReserved, '该座位当前时段已被他人预约')
   }
 
   seat.status = 'occupied'
   seat.occupiedBy = userId
-  seat.reservedBy = undefined
   updateRoomOccupied(roomId)
 
   const matchingReservation = reservations.find(

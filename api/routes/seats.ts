@@ -31,10 +31,6 @@ router.post('/reserve', authMiddleware, asyncHandler((req: Request, res: Respons
     throwError(ErrorCode.NotFound, '座位不存在')
   }
 
-  if (seat.status !== 'available') {
-    throwError(ErrorCode.SeatUnavailable)
-  }
-
   const newStart = new Date(startTime).getTime()
   const newEnd = new Date(endTime).getTime()
 
@@ -60,11 +56,8 @@ router.post('/reserve', authMiddleware, asyncHandler((req: Request, res: Respons
     && newEnd > new Date(r.startTime).getTime()
   )
   if (userTimeOverlap) {
-    throwError(ErrorCode.TimeConflict)
+    throwError(ErrorCode.TimeConflict, '该时间段与您的其他预约冲突，同一时段只能预约一个座位')
   }
-
-  seat.status = 'reserved'
-  seat.reservedBy = userId
 
   const reservation: Reservation = {
     id: `reservation_${Date.now()}_${reservationCounter++}`,
@@ -110,16 +103,10 @@ router.post('/cancel', authMiddleware, asyncHandler((req: Request, res: Response
   }
 
   if (reservation.status !== 'pending') {
-    throwError(ErrorCode.InvalidStatus)
+    throwError(ErrorCode.InvalidStatus, '该预约无法取消')
   }
 
   reservation.status = 'cancelled'
-
-  const seat = findSeat(reservation.roomId, reservation.seatId)
-  if (seat && seat.status === 'reserved' && seat.reservedBy === userId) {
-    seat.status = 'available'
-    seat.reservedBy = undefined
-  }
 
   res.status(200).json({
     data: { success: true, reservationId },

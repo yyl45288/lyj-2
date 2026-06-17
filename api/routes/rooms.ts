@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { rooms, findRoom } from '../data.js'
+import { rooms, findRoom, getRoomWithDynamicSeats } from '../data.js'
 import type { Room } from '../../shared/types.js'
 import { asyncHandler, throwError } from '../middleware/errorHandler.js'
 import { ErrorCode } from '../errors.js'
@@ -27,8 +27,10 @@ router.get('/:id', asyncHandler((req: Request, res: Response): void => {
     throwError(ErrorCode.NotFound, '房间不存在')
   }
 
+  const dynamicRoom = getRoomWithDynamicSeats(room)
+
   res.status(200).json({
-    data: room,
+    data: dynamicRoom,
     message: '获取房间详情成功',
   })
 }))

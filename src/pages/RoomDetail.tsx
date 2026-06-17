@@ -148,9 +148,7 @@ export default function RoomDetail() {
   }, [currentRoom, userInfo, isAuthenticated]);
 
   const handleSeatClick = (seat: Seat) => {
-    if (seat.status === "available") {
-      setSelectedSeat(seat);
-    } else if (seat.status === "mine") {
+    if (seat.status === "available" || seat.status === "reserved" || seat.status === "mine") {
       setSelectedSeat(seat);
     }
   };
@@ -420,10 +418,7 @@ export default function RoomDetail() {
                               <button
                                 key={seat.id}
                                 onClick={() => handleSeatClick(seat)}
-                                disabled={
-                                  seat.status === "occupied" ||
-                                  seat.status === "reserved"
-                                }
+                                disabled={seat.status === "occupied"}
                                 title={tooltipContent}
                                 className={cn(
                                   "relative aspect-square rounded-xl border-2 flex items-center justify-center text-xs font-semibold transition-all duration-200 min-h-[44px]",

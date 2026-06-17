@@ -127,7 +127,6 @@ function generateSeats(roomId: string, rows: number, cols: number, occupiedRatio
   const seats: Seat[][] = []
   const totalSeats = rows * cols
   const occupiedCount = Math.floor(totalSeats * occupiedRatio)
-  const reservedCount = Math.floor(totalSeats * 0.08)
 
   const allPositions: { row: number; col: number }[] = []
   for (let r = 0; r < rows; r++) {
@@ -142,9 +141,6 @@ function generateSeats(roomId: string, rows: number, cols: number, occupiedRatio
   }
 
   const occupiedSet = new Set(allPositions.slice(0, occupiedCount).map(p => `${p.row}-${p.col}`))
-  const reservedSet = new Set(allPositions.slice(occupiedCount, occupiedCount + reservedCount).map(p => `${p.row}-${p.col}`))
-
-  let userIdx = 0
 
   for (let r = 0; r < rows; r++) {
     const row: Seat[] = []
@@ -156,8 +152,6 @@ function generateSeats(roomId: string, rows: number, cols: number, occupiedRatio
 
       if (occupiedSet.has(key)) {
         status = 'occupied'
-      } else if (reservedSet.has(key)) {
-        status = 'reserved'
       }
 
       row.push({
@@ -280,8 +274,6 @@ function createReservations(): Reservation[] {
     for (const s of row) {
       if (s.status === 'available') {
         seat1 = s
-        s.status = 'reserved'
-        s.reservedBy = 'user_self'
         break
       }
     }
@@ -313,8 +305,6 @@ function createReservations(): Reservation[] {
     for (const s of row) {
       if (s.status === 'available') {
         seat2 = s
-        s.status = 'reserved'
-        s.reservedBy = 'user_self'
         break
       }
     }
@@ -358,6 +348,57 @@ function createReservations(): Reservation[] {
   })
 
   return reservations
+}
+
+export function getSeatReservations(roomId: string, seatId: string): Reservation[] {
+  return reservations.filter(r =>
+    r.roomId === roomId
+    && r.seatId === seatId
+    && (r.status === 'pending' || r.status === 'active')
+  )
+}
+
+export function computeSeatStatus(
+  seat: Seat,
+  roomId: string,
+  atTime: Date = new Date()
+): { status: SeatStatus; reservedBy?: string; occupiedBy?: string } {
+  if (seat.status === 'occupied') {
+    return { status: 'occupied', occupiedBy: seat.occupiedBy }
+  }
+
+  const timeMs = atTime.getTime()
+  const currentReservation = reservations.find(r =>
+    r.roomId === roomId
+    && r.seatId === seat.id
+    && (r.status === 'pending' || r.status === 'active')
+    && timeMs >= new Date(r.startTime).getTime()
+    && timeMs < new Date(r.endTime).getTime()
+  )
+
+  if (currentReservation) {
+    return { status: 'reserved', reservedBy: currentReservation.userId }
+  }
+
+  return { status: 'available' }
+}
+
+export function getRoomWithDynamicSeats(room: Room, atTime: Date = new Date()): Room {
+  const dynamicSeats = room.seats.map(row =>
+    row.map(seat => {
+      if (seat.status === 'occupied') {
+        return seat
+      }
+      const computed = computeSeatStatus(seat, room.id, atTime)
+      return {
+        ...seat,
+        status: computed.status,
+        reservedBy: computed.reservedBy,
+        occupiedBy: computed.occupiedBy,
+      }
+    })
+  )
+  return { ...room, seats: dynamicSeats }
 }
 
 function createPointLogs(): PointLog[] {

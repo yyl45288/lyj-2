@@ -13,7 +13,7 @@ interface FrontendTestCaseResult {
 const frontendResults: FrontendTestCaseResult[] = []
 
 function canSelectSeat(seat: Seat): boolean {
-  return seat.status === 'available' || seat.status === 'mine'
+  return seat.status === 'available' || seat.status === 'reserved' || seat.status === 'mine'
 }
 
 function computeEndTime(startTime: Date, durationHours: number): Date {
@@ -88,20 +88,20 @@ describe('预约系统 - 前端座位选择逻辑测试', () => {
     expect(result).toBe(false)
   })
 
-  it('FE-S03: reserved座位不可被选择', () => {
+  it('FE-S03: reserved座位可以被选择', () => {
     const seat = createMockSeat({ status: 'reserved', reservedBy: 'user_other' })
     const result = canSelectSeat(seat)
 
     frontendResults.push({
       id: 'FE-S03',
-      name: 'reserved座位不可被选择',
+      name: 'reserved座位可以被选择',
       category: '座位选择',
-      expected: 'UNSELECTABLE',
+      expected: 'SELECTABLE',
       actual: result ? 'SELECTABLE' : 'UNSELECTABLE',
-      reason: 'reserved(已被他人预约)状态的座位不可被选择',
+      reason: 'reserved只是当前时段被预约，用户可选择其他时段预约',
     })
 
-    expect(result).toBe(false)
+    expect(result).toBe(true)
   })
 
   it('FE-S04: mine座位可以被选择', () => {

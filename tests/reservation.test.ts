@@ -123,10 +123,6 @@ function validateReservation(params: {
     return { success: false, error: '座位不存在' }
   }
 
-  if (seat.status !== 'available') {
-    return { success: false, error: '该座位不可预约' }
-  }
-
   const newStart = new Date(startTime).getTime()
   const newEnd = new Date(endTime).getTime()
 
@@ -421,7 +417,7 @@ describe('预约系统 - 预约接口测试', () => {
     expect(result.error).toBe('座位不存在')
   })
 
-  it('TC-R07: 座位状态为occupied - 应失败', () => {
+  it('TC-R07: 座位状态为occupied但时段不冲突 - 应成功', () => {
     const seat: Seat = { ...room.seats[0][0], status: 'occupied', occupiedBy: 'user_other' }
     const start = hoursFromNow(1)
     const end = hoursFromNow(3)
@@ -441,25 +437,35 @@ describe('预约系统 - 预约接口测试', () => {
     recordResult(
       {
         id: 'TC-R07',
-        name: '座位已被占用(occupied)',
-        category: '座位状态校验',
+        name: '座位占用中但时段不冲突',
+        category: '时段不冲突',
         seatStatus: 'occupied',
         userAuthenticated: true,
         timeValid: true,
-        expected: 'FAIL',
-        reason: '座位正在使用中，不可预约',
+        expected: 'SUCCESS',
+        reason: '预约的是未来时段，与当前占用不冲突',
       },
       result.success ? 'SUCCESS' : 'FAIL'
     )
 
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('该座位不可预约')
+    expect(result.success).toBe(true)
   })
 
-  it('TC-R08: 座位状态为reserved - 应失败', () => {
+  it('TC-R08: 座位状态为reserved但时段不冲突 - 应成功', () => {
     const seat: Seat = { ...room.seats[0][0], status: 'reserved', reservedBy: 'user_other' }
-    const start = hoursFromNow(1)
-    const end = hoursFromNow(3)
+    const start = hoursFromNow(4)
+    const end = hoursFromNow(6)
+
+    existingReservations.push(
+      createMockReservation({
+        userId: otherUser.id,
+        seatId: seat.id,
+        roomId: room.id,
+        startTime: hoursFromNow(1),
+        endTime: hoursFromNow(3),
+        status: 'pending',
+      })
+    )
 
     const result = validateReservation({
       isAuthenticated: true,
@@ -476,19 +482,18 @@ describe('预约系统 - 预约接口测试', () => {
     recordResult(
       {
         id: 'TC-R08',
-        name: '座位已被预约(reserved)',
-        category: '座位状态校验',
+        name: '座位有预约但时段不冲突',
+        category: '时段不冲突',
         seatStatus: 'reserved',
         userAuthenticated: true,
         timeValid: true,
-        expected: 'FAIL',
-        reason: '座位已被他人预约，不可再预约',
+        expected: 'SUCCESS',
+        reason: '同一座位可以被预约不同的时段，只要不重叠',
       },
       result.success ? 'SUCCESS' : 'FAIL'
     )
 
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('该座位不可预约')
+    expect(result.success).toBe(true)
   })
 
   it('TC-R09: 结束时间早于开始时间 - 应失败', () => {
@@ -819,6 +824,49 @@ describe('预约系统 - 预约接口测试', () => {
         timeValid: true,
         expected: 'SUCCESS',
         reason: '时段不重叠，可以预约同一座位',
+      },
+      result.success ? 'SUCCESS' : 'FAIL'
+    )
+
+    expect(result.success).toBe(true)
+  })
+
+  it('TC-R16b: 同一用户预约同一座位的不同时段 - 应成功', () => {
+    const seat = room.seats[0][0]
+
+    existingReservations.push(
+      createMockReservation({
+        userId: user.id,
+        seatId: seat.id,
+        roomId: room.id,
+        startTime: hoursFromNow(1),
+        endTime: hoursFromNow(3),
+        status: 'pending',
+      })
+    )
+
+    const result = validateReservation({
+      isAuthenticated: true,
+      userId: user.id,
+      room,
+      seat,
+      startTime: hoursFromNow(4),
+      endTime: hoursFromNow(6),
+      existingReservations,
+      targetSeatId: seat.id,
+      targetRoomId: room.id,
+    })
+
+    recordResult(
+      {
+        id: 'TC-R16b',
+        name: '同一用户同一座位不同时段',
+        category: '时段不冲突',
+        seatStatus: 'available',
+        userAuthenticated: true,
+        timeValid: true,
+        expected: 'SUCCESS',
+        reason: '同一用户可以预约同一座位的不同时段',
       },
       result.success ? 'SUCCESS' : 'FAIL'
     )
