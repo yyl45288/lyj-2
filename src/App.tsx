@@ -8,6 +8,7 @@ import StudyCenter from "@/pages/StudyCenter";
 import Leaderboard from "@/pages/Leaderboard";
 import Profile from "@/pages/Profile";
 import Login from "@/pages/Login";
+import ToastContainer from "@/components/Toast";
 import useAppStore from "@/store/useAppStore";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -30,7 +31,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  const { checkAuth, loading } = useAppStore();
+  const { checkAuth } = useAppStore();
 
   useEffect(() => {
     checkAuth();
@@ -99,6 +100,7 @@ export default function App() {
   return (
     <Router>
       <AppRoutes />
+      <ToastContainer />
     </Router>
   );
 }

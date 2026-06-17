@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { findToken } from '../data.js'
+import { asyncHandler, throwError } from '../middleware/errorHandler.js'
+import { ErrorCode } from '../errors.js'
 
 declare global {
   namespace Express {
@@ -9,33 +11,25 @@ declare global {
   }
 }
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+export const authMiddleware = asyncHandler((req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({
-      error: 'Unauthorized',
-      message: '请先登录',
-    })
-    return
+    throwError(ErrorCode.Unauthorized, '请先登录')
   }
 
   const token = authHeader.slice(7)
   const tokenRecord = findToken(token)
 
   if (!tokenRecord) {
-    res.status(401).json({
-      error: 'Unauthorized',
-      message: '登录已过期，请重新登录',
-    })
-    return
+    throwError(ErrorCode.TokenExpired, '登录已过期，请重新登录')
   }
 
   req.userId = tokenRecord.userId
   next()
-}
+})
 
-export function optionalAuthMiddleware(req: Request, res: Response, next: NextFunction): void {
+export const optionalAuthMiddleware = asyncHandler((req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -47,4 +41,4 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
   }
 
   next()
-}
+})

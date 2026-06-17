@@ -3,11 +3,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { BookOpen, User, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import useAppStore from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
+import useToastStore from "@/store/useToastStore";
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, register, loading, error, clearError } = useAppStore();
+  const { login, register, loading } = useAppStore();
+  const { showError } = useToastStore();
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
@@ -20,7 +22,6 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError("");
-    clearError();
 
     if (!username.trim()) {
       setLocalError("请输入用户名");
@@ -50,11 +51,11 @@ export default function Login() {
       }
       navigate(from, { replace: true });
     } catch (err) {
-      // error handled in store
+      showError(err);
     }
   };
 
-  const displayError = localError || error;
+  const displayError = localError;
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-gradient-to-br from-forest-50/50 via-cream-50 to-amberGold-50/50">
@@ -146,7 +147,6 @@ export default function Login() {
                 onClick={() => {
                   setMode(mode === "login" ? "register" : "login");
                   setLocalError("");
-                  clearError();
                 }}
                 className="ml-1 text-forest-600 hover:text-forest-700 font-medium transition-colors"
               >
@@ -169,7 +169,6 @@ export default function Login() {
                     setPassword("123456");
                     setMode("login");
                     setLocalError("");
-                    clearError();
                   }}
                   className={cn(
                     "px-3 py-1.5 rounded-lg text-xs border transition-all",

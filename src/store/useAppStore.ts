@@ -9,6 +9,7 @@ import type {
   StudySession,
 } from "@/../../shared/types";
 import api from "@/lib/api";
+import useToastStore from "./useToastStore";
 
 interface AppState {
   isAuthenticated: boolean;
@@ -28,7 +29,6 @@ interface AppState {
     studyRecords: boolean;
     auth: boolean;
   };
-  error: string | null;
   login: (username: string, password: string) => Promise<User>;
   register: (username: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
@@ -57,7 +57,6 @@ interface AppState {
     durationMinutes: number;
     pointsEarned: number;
   }>;
-  clearError: () => void;
 }
 
 const DEFAULT_USER_ID = "user_self";
@@ -86,7 +85,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   myReservations: [],
   studyRecords: [],
   loading: initialLoading,
-  error: null,
 
   login: async (username: string, password: string) => {
     set({ loading: { ...get().loading, auth: true } });
@@ -98,12 +96,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         userInfo: result.user,
         loading: { ...get().loading, auth: false },
       });
+      useToastStore.getState().showSuccess("登录成功", `欢迎回来，${result.user.username}！`);
       return result.user;
     } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : "登录失败",
-        loading: { ...get().loading, auth: false },
-      });
+      set({ loading: { ...get().loading, auth: false } });
+      useToastStore.getState().showError(err);
       throw err;
     }
   },
@@ -118,12 +115,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         userInfo: result.user,
         loading: { ...get().loading, auth: false },
       });
+      useToastStore.getState().showSuccess("注册成功", "欢迎加入学习平台！");
       return result.user;
     } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : "注册失败",
-        loading: { ...get().loading, auth: false },
-      });
+      set({ loading: { ...get().loading, auth: false } });
+      useToastStore.getState().showError(err);
       throw err;
     }
   },
@@ -142,6 +138,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       studyRecords: [],
       currentSession: null,
     });
+    useToastStore.getState().showSuccess("已安全登出");
   },
 
   checkAuth: async () => {
@@ -175,10 +172,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const user = await api.fetchUserInfo();
       set({ userInfo: user, loading: { ...get().loading, userInfo: false } });
     } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : "加载用户信息失败",
-        loading: { ...get().loading, userInfo: false },
-      });
+      set({ loading: { ...get().loading, userInfo: false } });
+      useToastStore.getState().showError(err);
     }
   },
 
@@ -188,10 +183,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const rooms = await api.fetchRooms();
       set({ rooms, loading: { ...get().loading, rooms: false } });
     } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : "加载房间列表失败",
-        loading: { ...get().loading, rooms: false },
-      });
+      set({ loading: { ...get().loading, rooms: false } });
+      useToastStore.getState().showError(err);
     }
   },
 
@@ -205,10 +198,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         loading: { ...state.loading, currentRoom: false },
       }));
     } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : "加载房间详情失败",
-        loading: { ...get().loading, currentRoom: false },
-      });
+      set({ loading: { ...get().loading, currentRoom: false } });
+      useToastStore.getState().showError(err);
     }
   },
 
@@ -221,10 +212,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         loading: { ...state.loading, leaderboard: false },
       }));
     } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : "加载排行榜失败",
-        loading: { ...get().loading, leaderboard: false },
-      });
+      set({ loading: { ...get().loading, leaderboard: false } });
+      useToastStore.getState().showError(err);
     }
   },
 
@@ -235,10 +224,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const reservations = await api.fetchReservations(targetUserId);
       set({ myReservations: reservations, loading: { ...get().loading, myReservations: false } });
     } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : "加载预约记录失败",
-        loading: { ...get().loading, myReservations: false },
-      });
+      set({ loading: { ...get().loading, myReservations: false } });
+      useToastStore.getState().showError(err);
     }
   },
 
@@ -249,10 +236,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const records = await api.fetchStudyRecords(targetUserId);
       set({ studyRecords: records, loading: { ...get().loading, studyRecords: false } });
     } catch (err) {
-      set({
-        error: err instanceof Error ? err.message : "加载学习记录失败",
-        loading: { ...get().loading, studyRecords: false },
-      });
+      set({ loading: { ...get().loading, studyRecords: false } });
+      useToastStore.getState().showError(err);
     }
   },
 
@@ -268,8 +253,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         currentSession: { ...currentSession, isPaused: true },
       });
+      useToastStore.getState().showSuccess("已暂停学习");
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "暂停失败" });
+      useToastStore.getState().showError(err);
     }
   },
 
@@ -281,8 +267,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         currentSession: { ...currentSession, isPaused: false },
       });
+      useToastStore.getState().showSuccess("已恢复学习", "继续加油！");
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "恢复失败" });
+      useToastStore.getState().showError(err);
     }
   },
 
@@ -302,9 +289,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((state) => ({
         myReservations: [...state.myReservations, reservation],
       }));
+      useToastStore.getState().showSuccess("预约成功", "请按时到达自习室哦～");
       return reservation;
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "预约失败" });
+      useToastStore.getState().showError(err);
       throw err;
     }
   },
@@ -317,8 +305,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           (r) => r.id !== reservationId
         ),
       }));
+      useToastStore.getState().showSuccess("取消成功", "预约已取消");
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "取消预约失败" });
+      useToastStore.getState().showError(err);
       throw err;
     }
   },
@@ -336,9 +325,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           accumulatedSeconds: 0,
         },
       });
+      useToastStore.getState().showSuccess("签到成功", "开始高效学习吧！");
       return result;
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "签到失败" });
+      useToastStore.getState().showError(err);
       throw err;
     }
   },
@@ -351,14 +341,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const result = await api.checkOut(currentSession.recordId);
       set({ currentSession: null });
+      useToastStore.getState().showSuccess(
+        "签退成功",
+        `学习了 ${result.durationMinutes} 分钟，获得 ${result.pointsEarned} 积分！`
+      );
       return result;
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "签退失败" });
+      useToastStore.getState().showError(err);
       throw err;
     }
   },
-
-  clearError: () => set({ error: null }),
 }));
 
 export default useAppStore;

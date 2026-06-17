@@ -5,10 +5,8 @@
 import express, {
   type Request,
   type Response,
-  type NextFunction,
 } from 'express'
 import cors from 'cors'
-import path from 'path'
 import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
@@ -17,10 +15,11 @@ import seatsRoutes from './routes/seats.js'
 import studyRoutes from './routes/study.js'
 import userRoutes from './routes/user.js'
 import leaderboardRoutes from './routes/leaderboard.js'
+import { errorHandler } from './middleware/errorHandler.js'
+import { ErrorCode } from './errors.js'
 
 // for esm mode
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+void fileURLToPath(import.meta.url)
 
 // load env
 dotenv.config()
@@ -46,7 +45,7 @@ app.use('/api/leaderboard', leaderboardRoutes)
  */
 app.use(
   '/api/health',
-  (req: Request, res: Response, next: NextFunction): void => {
+  (req: Request, res: Response): void => {
     res.status(200).json({
       success: true,
       message: 'ok',
@@ -55,23 +54,21 @@ app.use(
 )
 
 /**
- * error handler middleware
- */
-app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
-  res.status(500).json({
-    success: false,
-    error: 'Server internal error',
-  })
-})
-
-/**
  * 404 handler
  */
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
-    error: 'API not found',
+    error: ErrorCode.NotFound,
+    message: 'API not found',
+    userSolvable: true,
+    solution: '请确认您访问的接口地址是否正确',
   })
 })
+
+/**
+ * global error handler middleware
+ */
+app.use(errorHandler)
 
 export default app

@@ -7,11 +7,43 @@ import type {
   LeaderboardItem,
   LeaderboardPeriod,
 } from "@/../../shared/types";
+import { ApiError } from "./error";
+import type { ErrorCode } from "../types/error";
 
 const baseURL = `${window.location.origin}/api`;
 const TOKEN_KEY = "auth_token";
 
 type ApiResponse<T> = { data: T; message?: string };
+
+type ApiErrorResponse = {
+  success: false;
+  error: ErrorCode;
+  message: string;
+  userSolvable: boolean;
+  solution?: string;
+};
+
+export const errorListeners: ((error: ApiError) => void)[] = [];
+
+export function addErrorListener(listener: (error: ApiError) => void): () => void {
+  errorListeners.push(listener);
+  return () => {
+    const idx = errorListeners.indexOf(listener);
+    if (idx !== -1) {
+      errorListeners.splice(idx, 1);
+    }
+  };
+}
+
+function notifyErrorListeners(error: ApiError): void {
+  for (const listener of errorListeners) {
+    try {
+      listener(error);
+    } catch {
+      // ignore
+    }
+  }
+}
 
 function getToken(): string | null {
   try {
@@ -62,11 +94,24 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok) {
-    const err = (await response.json().catch(() => ({}))) as {
-      message?: string;
-      error?: string;
-    };
-    throw new Error(err.message || `HTTP error! status: ${response.status}`);
+    let apiError: ApiError;
+    try {
+      const errData = (await response.json()) as ApiErrorResponse;
+      apiError = new ApiError({
+        code: errData.error,
+        message: errData.message,
+        userSolvable: errData.userSolvable,
+        solution: errData.solution,
+      });
+    } catch {
+      apiError = new ApiError({
+        code: "InternalServerError" as ErrorCode,
+        message: `请求失败 (HTTP ${response.status})`,
+        userSolvable: false,
+      });
+    }
+    notifyErrorListeners(apiError);
+    throw apiError;
   }
 
   const json = (await response.json()) as ApiResponse<T>;
