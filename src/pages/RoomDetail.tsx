@@ -132,19 +132,20 @@ export default function RoomDetail() {
 
   const roomSeats = useMemo(() => {
     if (!currentRoom) return [];
-    const userId = userInfo?.id ?? "user_self";
+    const userId = isAuthenticated ? (userInfo?.id ?? "") : "";
     return currentRoom.seats.map((row) =>
       row.map((seat) => {
         if (
-          (seat.reservedBy === userId && seat.status === "reserved") ||
-          (seat.occupiedBy === userId && seat.status === "occupied")
+          userId &&
+          ((seat.reservedBy === userId && seat.status === "reserved") ||
+          (seat.occupiedBy === userId && seat.status === "occupied"))
         ) {
           return { ...seat, status: "mine" as SeatStatus };
         }
         return seat;
       })
     );
-  }, [currentRoom, userInfo]);
+  }, [currentRoom, userInfo, isAuthenticated]);
 
   const handleSeatClick = (seat: Seat) => {
     if (seat.status === "available") {

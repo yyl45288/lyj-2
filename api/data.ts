@@ -156,12 +156,8 @@ function generateSeats(roomId: string, rows: number, cols: number, occupiedRatio
 
       if (occupiedSet.has(key)) {
         status = 'occupied'
-        occupiedBy = otherUserIds[userIdx % otherUserIds.length]
-        userIdx++
       } else if (reservedSet.has(key)) {
         status = 'reserved'
-        reservedBy = otherUserIds[userIdx % otherUserIds.length]
-        userIdx++
       }
 
       row.push({

@@ -32,7 +32,7 @@ export default function Navbar() {
   const handleLogout = async () => {
     setMenuOpen(false);
     await logout();
-    navigate("/");
+    navigate("/login");
   };
 
   const handleLoginClick = () => {
