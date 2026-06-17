@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import useAppStore from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
+import api from "@/lib/api";
 import type { Seat } from "@/../../shared/types";
 
 const TARGET_MINUTES = 25;
@@ -42,6 +43,7 @@ export default function StudyCenter() {
     doCheckOut,
     pauseCurrentSession,
     resumeCurrentSession,
+    setCurrentSession,
   } = useAppStore();
 
   const [selectedRoomId, setSelectedRoomId] = useState<string>("");
@@ -81,12 +83,6 @@ export default function StudyCenter() {
     if (!currentSession) return 0;
     return currentSession.accumulatedSeconds + (currentSession.isPaused ? 0 : tick);
   }, [currentSession, tick]);
-
-  useEffect(() => {
-    if (currentSession && tick > 0 && !currentSession.isPaused) {
-      currentSession.accumulatedSeconds = displaySeconds;
-    }
-  }, [displaySeconds, currentSession, tick]);
 
   const selectedRoom = useMemo(
     () => rooms.find((r) => r.id === selectedRoomId) || null,
@@ -147,7 +143,14 @@ export default function StudyCenter() {
     if (!selectedRoomId || !selectedSeatId) return;
     try {
       setTick(0);
-      await doCheckIn(selectedRoomId, selectedSeatId);
+      const { recordId, checkInTime } = await doCheckIn(selectedRoomId, selectedSeatId);
+      const session = useAppStore.getState().currentSession;
+      if (session) {
+        setCurrentSession({
+          ...session,
+          accumulatedSeconds: 0,
+        });
+      }
     } catch {
       // error handled in store
     }
@@ -158,6 +161,36 @@ export default function StudyCenter() {
       await doCheckOut();
       setTick(0);
       await loadStudyRecords();
+    } catch {
+      // error handled in store
+    }
+  };
+
+  const handlePause = async () => {
+    if (!currentSession) return;
+    try {
+      const newAccumulated = currentSession.accumulatedSeconds + tick;
+      setCurrentSession({
+        ...currentSession,
+        accumulatedSeconds: newAccumulated,
+        isPaused: true,
+      });
+      setTick(0);
+      await api.pauseStudy(currentSession.recordId);
+    } catch {
+      // error handled in store
+    }
+  };
+
+  const handleResume = async () => {
+    if (!currentSession) return;
+    try {
+      setCurrentSession({
+        ...currentSession,
+        isPaused: false,
+      });
+      setTick(0);
+      await api.resumeStudy(currentSession.recordId);
     } catch {
       // error handled in store
     }
@@ -386,7 +419,7 @@ export default function StudyCenter() {
                   </button>
                 ) : currentSession.isPaused ? (
                   <>
-                    <button onClick={resumeCurrentSession} className="btn-primary !px-8 !py-3.5">
+                    <button onClick={handleResume} className="btn-primary !px-8 !py-3.5">
                       <Play className="w-5 h-5" />
                       继续学习
                     </button>
@@ -397,7 +430,7 @@ export default function StudyCenter() {
                   </>
                 ) : (
                   <>
-                    <button onClick={pauseCurrentSession} className="btn-secondary !px-8 !py-3.5">
+                    <button onClick={handlePause} className="btn-secondary !px-8 !py-3.5">
                       <Pause className="w-5 h-5" />
                       暂停
                     </button>
