@@ -13,6 +13,7 @@ import {
   MapPin,
   Trash2,
   Loader2,
+  LogIn,
 } from "lucide-react";
 import type { Seat, RoomType, SeatStatus } from "@/../../shared/types";
 import useAppStore from "@/store/useAppStore";
@@ -79,6 +80,7 @@ export default function RoomDetail() {
     myReservations,
     loading,
     userInfo,
+    isAuthenticated,
     loadRoom,
     loadMyReservations,
     doReserve,
@@ -152,8 +154,17 @@ export default function RoomDetail() {
     }
   };
 
+  const handleLoginRedirect = () => {
+    navigate("/login", { state: { from: `/rooms/${id}` } });
+  };
+
   const handleReserve = async () => {
     if (!selectedSeat || !id) return;
+
+    if (!isAuthenticated) {
+      handleLoginRedirect();
+      return;
+    }
 
     setIsReserving(true);
     try {
@@ -547,23 +558,33 @@ export default function RoomDetail() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleReserve}
-                    disabled={isReserving}
-                    className="btn-primary w-full py-3.5 text-base"
-                  >
-                    {isReserving ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        预约中...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-5 h-5" />
-                        确认预约
-                      </>
-                    )}
-                  </button>
+                  {isAuthenticated ? (
+                    <button
+                      onClick={handleReserve}
+                      disabled={isReserving}
+                      className="btn-primary w-full py-3.5 text-base"
+                    >
+                      {isReserving ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          预约中...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-5 h-5" />
+                          确认预约
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleLoginRedirect}
+                      className="btn-primary w-full py-3.5 text-base"
+                    >
+                      <LogIn className="w-5 h-5" />
+                      登录后预约
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -626,15 +647,33 @@ export default function RoomDetail() {
           <div className="card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="title-serif text-lg">我的预约</h3>
-              <button
-                onClick={() => navigate("/rooms")}
-                className="text-xs text-forest-600 hover:text-forest-700 font-medium"
-              >
-                查看全部
-              </button>
+              {isAuthenticated && (
+                <button
+                  onClick={() => navigate("/profile")}
+                  className="text-xs text-forest-600 hover:text-forest-700 font-medium"
+                >
+                  查看全部
+                </button>
+              )}
             </div>
 
-            {loading.myReservations ? (
+            {!isAuthenticated ? (
+              <div className="py-8 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-cream-100 flex items-center justify-center mx-auto">
+                  <LogIn className="w-6 h-6 text-cream-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-forest-800">登录后查看预约</p>
+                  <p className="text-xs text-cream-500">登录后即可管理你的座位预约</p>
+                </div>
+                <button
+                  onClick={handleLoginRedirect}
+                  className="btn-primary !py-2 !px-6 text-sm"
+                >
+                  立即登录
+                </button>
+              </div>
+            ) : loading.myReservations ? (
               <div className="py-8 flex justify-center">
                 <Loader2 className="w-6 h-6 text-forest-500 animate-spin" />
               </div>

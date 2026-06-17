@@ -1,13 +1,23 @@
 import { Router, type Request, type Response } from 'express'
-import { findRoom, findSeat, reservations } from '../data.js'
+import { findRoom, findSeat, reservations, findUser } from '../data.js'
 import type { Reservation } from '../../shared/types.js'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.js'
 
 const router = Router()
 
 let reservationCounter = 100
 
-router.post('/reserve', (req: Request, res: Response): void => {
+router.post('/reserve', authMiddleware, (req: Request, res: Response): void => {
   try {
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: '请先登录',
+      })
+      return
+    }
+
     const { roomId, seatId, startTime, endTime } = req.body
 
     if (!roomId || !seatId || !startTime || !endTime) {
@@ -44,26 +54,50 @@ router.post('/reserve', (req: Request, res: Response): void => {
       return
     }
 
-    const userId = 'user_self'
-
     const newStart = new Date(startTime).getTime()
     const newEnd = new Date(endTime).getTime()
-    const hasOverlap = reservations.some(r =>
-      r.userId === userId
-      && r.status === 'pending'
+
+    if (newEnd <= newStart) {
+      res.status(400).json({
+        error: 'InvalidTimeRange',
+        message: '结束时间必须晚于开始时间',
+      })
+      return
+    }
+
+    const seatOverlap = reservations.some(r =>
+      r.roomId === roomId
+      && r.seatId === seatId
+      && (r.status === 'pending' || r.status === 'active')
       && newStart < new Date(r.endTime).getTime()
       && newEnd > new Date(r.startTime).getTime()
     )
-    if (hasOverlap) {
+    if (seatOverlap) {
+      res.status(400).json({
+        error: 'SeatOccupied',
+        message: '该座位在该时段已被预约，请选择其他时段或座位',
+      })
+      return
+    }
+
+    const userTimeOverlap = reservations.some(r =>
+      r.userId === userId
+      && (r.status === 'pending' || r.status === 'active')
+      && newStart < new Date(r.endTime).getTime()
+      && newEnd > new Date(r.startTime).getTime()
+    )
+    if (userTimeOverlap) {
       res.status(400).json({
         error: 'TimeConflict',
-        message: '该时间段与已有预约冲突，同一时段只能预约一个座位',
+        message: '该时间段与您的其他预约冲突，同一时段只能预约一个座位',
       })
       return
     }
 
     seat.status = 'reserved'
     seat.reservedBy = userId
+
+    const user = findUser(userId)
 
     const reservation: Reservation = {
       id: `reservation_${Date.now()}_${reservationCounter++}`,
@@ -91,8 +125,17 @@ router.post('/reserve', (req: Request, res: Response): void => {
   }
 })
 
-router.post('/cancel', (req: Request, res: Response): void => {
+router.post('/cancel', authMiddleware, (req: Request, res: Response): void => {
   try {
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: '请先登录',
+      })
+      return
+    }
+
     const { reservationId } = req.body
 
     if (!reservationId) {
@@ -114,6 +157,14 @@ router.post('/cancel', (req: Request, res: Response): void => {
 
     const reservation = reservations[reservationIdx]
 
+    if (reservation.userId !== userId) {
+      res.status(403).json({
+        error: 'Forbidden',
+        message: '无权取消他人的预约',
+      })
+      return
+    }
+
     if (reservation.status !== 'pending') {
       res.status(400).json({
         error: 'InvalidStatus',
@@ -125,7 +176,7 @@ router.post('/cancel', (req: Request, res: Response): void => {
     reservation.status = 'cancelled'
 
     const seat = findSeat(reservation.roomId, reservation.seatId)
-    if (seat && seat.status === 'reserved') {
+    if (seat && seat.status === 'reserved' && seat.reservedBy === userId) {
       seat.status = 'available'
       seat.reservedBy = undefined
     }

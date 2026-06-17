@@ -11,6 +11,7 @@ import type {
 import api from "@/lib/api";
 
 interface AppState {
+  isAuthenticated: boolean;
   userInfo: User | null;
   rooms: Room[];
   currentRoom: Room | null;
@@ -25,8 +26,13 @@ interface AppState {
     leaderboard: boolean;
     myReservations: boolean;
     studyRecords: boolean;
+    auth: boolean;
   };
   error: string | null;
+  login: (username: string, password: string) => Promise<User>;
+  register: (username: string, password: string) => Promise<User>;
+  logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
   loadUser: () => Promise<void>;
   loadRooms: () => Promise<void>;
   loadRoom: (id: string) => Promise<void>;
@@ -63,9 +69,11 @@ const initialLoading = {
   leaderboard: false,
   myReservations: false,
   studyRecords: false,
+  auth: false,
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
+  isAuthenticated: false,
   userInfo: null,
   rooms: [],
   currentRoom: null,
@@ -79,6 +87,87 @@ export const useAppStore = create<AppState>((set, get) => ({
   studyRecords: [],
   loading: initialLoading,
   error: null,
+
+  login: async (username: string, password: string) => {
+    set({ loading: { ...get().loading, auth: true } });
+    try {
+      const result = await api.login({ username, password });
+      api.setToken(result.token);
+      set({
+        isAuthenticated: true,
+        userInfo: result.user,
+        loading: { ...get().loading, auth: false },
+      });
+      return result.user;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : "登录失败",
+        loading: { ...get().loading, auth: false },
+      });
+      throw err;
+    }
+  },
+
+  register: async (username: string, password: string) => {
+    set({ loading: { ...get().loading, auth: true } });
+    try {
+      const result = await api.register({ username, password });
+      api.setToken(result.token);
+      set({
+        isAuthenticated: true,
+        userInfo: result.user,
+        loading: { ...get().loading, auth: false },
+      });
+      return result.user;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : "注册失败",
+        loading: { ...get().loading, auth: false },
+      });
+      throw err;
+    }
+  },
+
+  logout: async () => {
+    try {
+      await api.logout();
+    } catch {
+      // ignore
+    }
+    api.removeToken();
+    set({
+      isAuthenticated: false,
+      userInfo: null,
+      myReservations: [],
+      studyRecords: [],
+      currentSession: null,
+    });
+  },
+
+  checkAuth: async () => {
+    const token = api.getToken();
+    if (!token) {
+      set({ isAuthenticated: false });
+      return;
+    }
+
+    set({ loading: { ...get().loading, auth: true } });
+    try {
+      const user = await api.fetchCurrentUser();
+      set({
+        isAuthenticated: true,
+        userInfo: user,
+        loading: { ...get().loading, auth: false },
+      });
+    } catch {
+      api.removeToken();
+      set({
+        isAuthenticated: false,
+        userInfo: null,
+        loading: { ...get().loading, auth: false },
+      });
+    }
+  },
 
   loadUser: async () => {
     set({ loading: { ...get().loading, userInfo: true } });
@@ -142,7 +231,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadMyReservations: async (userId: string = DEFAULT_USER_ID) => {
     set({ loading: { ...get().loading, myReservations: true } });
     try {
-      const reservations = await api.fetchReservations(userId);
+      const targetUserId = get().isAuthenticated ? (get().userInfo?.id ?? userId) : userId;
+      const reservations = await api.fetchReservations(targetUserId);
       set({ myReservations: reservations, loading: { ...get().loading, myReservations: false } });
     } catch (err) {
       set({
@@ -155,7 +245,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadStudyRecords: async (userId: string = DEFAULT_USER_ID) => {
     set({ loading: { ...get().loading, studyRecords: true } });
     try {
-      const records = await api.fetchStudyRecords(userId);
+      const targetUserId = get().isAuthenticated ? (get().userInfo?.id ?? userId) : userId;
+      const records = await api.fetchStudyRecords(targetUserId);
       set({ studyRecords: records, loading: { ...get().loading, studyRecords: false } });
     } catch (err) {
       set({

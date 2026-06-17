@@ -9,14 +9,45 @@ import type {
 } from "@/../../shared/types";
 
 const baseURL = `${window.location.origin}/api`;
+const TOKEN_KEY = "auth_token";
 
 type ApiResponse<T> = { data: T; message?: string };
 
+function getToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setToken(token: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // ignore
+  }
+}
+
+function removeToken(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${baseURL}${path}`;
+  const token = getToken();
+
   const defaultHeaders: Record<string, string> = {
     "Content-Type": "application/json",
   };
+
+  if (token) {
+    defaultHeaders["Authorization"] = `Bearer ${token}`;
+  }
 
   const response = await fetch(url, {
     ...options,
@@ -26,9 +57,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
 
+  if (response.status === 401) {
+    removeToken();
+  }
+
   if (!response.ok) {
     const err = (await response.json().catch(() => ({}))) as {
       message?: string;
+      error?: string;
     };
     throw new Error(err.message || `HTTP error! status: ${response.status}`);
   }
@@ -38,6 +74,31 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  login: (payload: {
+    username: string;
+    password: string;
+  }): Promise<{ user: User; token: string }> =>
+    request<{ user: User; token: string }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  register: (payload: {
+    username: string;
+    password: string;
+  }): Promise<{ user: User; token: string }> =>
+    request<{ user: User; token: string }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  logout: (): Promise<{ success: boolean }> =>
+    request<{ success: boolean }>("/auth/logout", {
+      method: "POST",
+    }),
+
+  fetchCurrentUser: (): Promise<User> => request<User>("/auth/me"),
+
   fetchRooms: (): Promise<Room[]> => request<Room[]>("/rooms"),
 
   fetchRoom: (id: string): Promise<Room> => request<Room>(`/rooms/${id}`),
@@ -113,6 +174,10 @@ export const api = {
     period: LeaderboardPeriod
   ): Promise<LeaderboardItem[]> =>
     request<LeaderboardItem[]>(`/leaderboard?period=${period}`),
+
+  getToken,
+  setToken,
+  removeToken,
 };
 
 export default api;

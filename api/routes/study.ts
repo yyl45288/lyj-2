@@ -10,16 +10,25 @@ import {
   updateRoomOccupied,
 } from '../data.js'
 import type { StudyRecord, StudySession } from '../../shared/types.js'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth.js'
 
 const router = Router()
 
 let recordCounter = 1000
 let pointLogCounter = 1000
 
-router.post('/checkin', (req: Request, res: Response): void => {
+router.post('/checkin', authMiddleware, (req: Request, res: Response): void => {
   try {
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: '请先登录',
+      })
+      return
+    }
+
     const { roomId, seatId } = req.body
-    const userId = 'user_self'
 
     if (!roomId || !seatId) {
       res.status(400).json({
@@ -117,10 +126,18 @@ router.post('/checkin', (req: Request, res: Response): void => {
   }
 })
 
-router.post('/checkout', (req: Request, res: Response): void => {
+router.post('/checkout', authMiddleware, (req: Request, res: Response): void => {
   try {
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: '请先登录',
+      })
+      return
+    }
+
     const { recordId } = req.body
-    const userId = 'user_self'
 
     if (!recordId) {
       res.status(400).json({
@@ -140,6 +157,14 @@ router.post('/checkout', (req: Request, res: Response): void => {
     }
 
     const record = studyRecords[recordIdx]
+
+    if (record.userId !== userId) {
+      res.status(403).json({
+        error: 'Forbidden',
+        message: '无权操作他人的学习记录',
+      })
+      return
+    }
 
     if (record.checkOutTime) {
       res.status(400).json({
@@ -207,10 +232,18 @@ router.post('/checkout', (req: Request, res: Response): void => {
   }
 })
 
-router.post('/pause', (req: Request, res: Response): void => {
+router.post('/pause', authMiddleware, (req: Request, res: Response): void => {
   try {
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: '请先登录',
+      })
+      return
+    }
+
     const { recordId } = req.body
-    const userId = 'user_self'
 
     if (!recordId) {
       res.status(400).json({
@@ -255,10 +288,18 @@ router.post('/pause', (req: Request, res: Response): void => {
   }
 })
 
-router.post('/resume', (req: Request, res: Response): void => {
+router.post('/resume', authMiddleware, (req: Request, res: Response): void => {
   try {
+    const userId = req.userId
+    if (!userId) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: '请先登录',
+      })
+      return
+    }
+
     const { recordId } = req.body
-    const userId = 'user_self'
 
     if (!recordId) {
       res.status(400).json({
@@ -300,10 +341,10 @@ router.post('/resume', (req: Request, res: Response): void => {
   }
 })
 
-router.get('/records', (req: Request, res: Response): void => {
+router.get('/records', optionalAuthMiddleware, (req: Request, res: Response): void => {
   try {
     const { userId } = req.query
-    const targetUserId = (userId as string) || 'user_self'
+    const targetUserId = (userId as string) || req.userId || 'user_self'
 
     const userRecords = studyRecords
       .filter(r => r.userId === targetUserId)

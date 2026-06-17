@@ -90,8 +90,10 @@ export default function Profile() {
   useEffect(() => {
     loadUser();
     loadStudyRecords();
-    api.fetchPoints("user_self").then(setPointLogs).catch(() => {});
-  }, [loadUser, loadStudyRecords]);
+    if (userInfo?.id) {
+      api.fetchPoints(userInfo.id).then(setPointLogs).catch(() => {});
+    }
+  }, [loadUser, loadStudyRecords, userInfo?.id]);
 
   const heatmapData = useMemo(() => {
     const map = new Map<string, number>();

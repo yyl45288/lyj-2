@@ -422,6 +422,90 @@ export const reservations: Reservation[] = createReservations()
 export const pointLogs: PointLog[] = createPointLogs()
 export const activeSessions: Map<string, StudySession> = new Map()
 
+export interface UserCredential {
+  userId: string
+  username: string
+  password: string
+}
+
+export interface AuthToken {
+  token: string
+  userId: string
+  createdAt: number
+  expiresAt: number
+}
+
+const TOKEN_TTL = 7 * 24 * 60 * 60 * 1000
+
+export const userCredentials: UserCredential[] = [
+  { userId: 'user_self', username: '学习小达人', password: '123456' },
+  { userId: 'user_1', username: '知识探索者', password: '123456' },
+  { userId: 'user_2', username: '星辰大海', password: '123456' },
+]
+
+export const authTokens: AuthToken[] = []
+
+function generateToken(): string {
+  return 'tok_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36)
+}
+
+export function createToken(userId: string): AuthToken {
+  const now = Date.now()
+  const token: AuthToken = {
+    token: generateToken(),
+    userId,
+    createdAt: now,
+    expiresAt: now + TOKEN_TTL,
+  }
+  authTokens.push(token)
+  return token
+}
+
+export function findToken(tokenStr: string): AuthToken | undefined {
+  return authTokens.find(t => t.token === tokenStr && t.expiresAt > Date.now())
+}
+
+export function revokeToken(tokenStr: string): boolean {
+  const idx = authTokens.findIndex(t => t.token === tokenStr)
+  if (idx !== -1) {
+    authTokens.splice(idx, 1)
+    return true
+  }
+  return false
+}
+
+export function findCredentialByUsername(username: string): UserCredential | undefined {
+  return userCredentials.find(c => c.username === username)
+}
+
+export function findCredentialByUserId(userId: string): UserCredential | undefined {
+  return userCredentials.find(c => c.userId === userId)
+}
+
+let userCounter = 100
+
+export function createUser(username: string, password: string): User {
+  const userId = `user_${userCounter++}`
+  const chars = username.slice(0, 1)
+  const cfg = avatarConfigs[userCounter % avatarConfigs.length]
+
+  const user: User = {
+    id: userId,
+    username,
+    avatar: generateGradientAvatar(chars, cfg[0], cfg[1]),
+    points: 0,
+    totalStudyMinutes: 0,
+    streakDays: 0,
+    level: 1,
+    badges: [],
+  }
+
+  users.push(user)
+  userCredentials.push({ userId, username, password })
+
+  return user
+}
+
 export function findRoom(roomId: string): Room | undefined {
   return rooms.find(r => r.id === roomId)
 }
